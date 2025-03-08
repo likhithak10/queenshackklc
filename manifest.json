@@ -1,7 +1,7 @@
 {
-    "name": "No Hooting Hackathon",
+    "name": "SOT Hackathon",
     "version": "1.0",
-    "description": "Blocks or warns you when you're off-task, inspired by No-Hooting-Around, with a hardcoded AI API key.",
+    "description": "Blocks or warns you when you're off-task,  with a hardcoded AI API key.",
     "manifest_version": 3,
     "permissions": [
       "tabs",

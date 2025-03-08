@@ -2,16 +2,16 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "OFF_TASK_WARNING") {
       const { url, goal, aiResult } = request.payload;
-      showOverlay(`No Hooting! You said your goal is "${goal}", but you're on "${url}".\nAI says: ${aiResult || "n/a"}`);
+      showOverlay(`You said your goal is "${goal}", but you're on "${url}".\nAI says: ${aiResult || "n/a"}`);
     }
   });
   
   function showOverlay(message) {
     // Basic overlay
-    let overlay = document.getElementById("noHootingOverlay");
+    let overlay = document.getElementById("sotOverlay");
     if (!overlay) {
       overlay = document.createElement("div");
-      overlay.id = "noHootingOverlay";
+      overlay.id = "sotOverlay";
       overlay.style.position = "fixed";
       overlay.style.top = "0";
       overlay.style.left = "0";

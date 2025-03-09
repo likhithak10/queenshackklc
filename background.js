@@ -1,100 +1,105 @@
-console.log("Background script is running!");
+console.log("RocketFocus background is active!");
 
-let currentSession = null; // Tracks the current session
-let lastCaptureTime = 0;   // Tracks the last time a screenshot was taken
-let isTracking = false;    // Tracks whether goal tracking is active
-let currentGoal = "";      // Stores the active goal
-let tabHistory = {};       // Keeps track of tab history to handle redirection
+// Tracking state
+let currentSession = null;
+let lastCaptureTime = 0;
+let isTracking = false;
+let currentGoal = "";
+let tabHistory = {};
 
-// Start or stop tracking
+// Listen for start/stop tracking
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "startTracking") {
     isTracking = true;
     currentGoal = message.goal;
-    console.log(`Goal set: ${currentGoal}`);
+    console.log(`Tracking started with mission: ${currentGoal}`);
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs.length > 0) {
         const activeTab = tabs[0];
-        if (activeTab.url && !activeTab.url.startsWith("chrome://") && !activeTab.url.startsWith("about:")) {
-          startSession(activeTab.id, activeTab.url);
+        if (
+          activeTab.url &&
+          !activeTab.url.startsWith("chrome://") &&
+          !activeTab.url.startsWith("about:")
+        ) {
+          beginSession(activeTab.id, activeTab.url);
         } else {
-          console.warn("Active tab has no valid URL for tracking.");
+          console.warn("Active tab is invalid for tracking.");
         }
       } else {
-        console.warn("No active tab found.");
+        console.warn("No active tab found to start tracking.");
       }
     });
 
     sendResponse({ success: true, goal: currentGoal });
   } else if (message.type === "stopTracking") {
     isTracking = false;
-    console.log("Tracking stopped.");
-    endSession(); // Ensure session ends immediately
+    console.log("Tracking ended.");
+    endSession();
     sendResponse({ success: true });
   } else if (message.type === "getTrackingState") {
     sendResponse({ isTracking, goal: currentGoal });
   }
 });
 
-// Detect when a tab is updated (page load or reload)
+// Monitor tab updates
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (isTracking && changeInfo.status === "complete" && tab.url) {
-    console.log(`Page changed: ${tab.url}`);
-    updateTabHistory(tabId, tab.url);
-    startSession(tabId, tab.url);
+    console.log(`Tab updated: ${tab.url}`);
+    recordTabHistory(tabId, tab.url);
+    beginSession(tabId, tab.url);
 
-    // Trigger owl animation on new page load
-    chrome.tabs.sendMessage(tabId, { action: "flyOwl" }, (response) => {
+    // Trigger rocket animation on the new page
+    chrome.tabs.sendMessage(tabId, { action: "rocketArrives" }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error("Error sending flyOwl message:", chrome.runtime.lastError);
+        console.error("Error sending rocketArrives:", chrome.runtime.lastError);
       } else {
-        console.log(response?.status || "Owl message sent");
+        console.log(response?.status || "Rocket arrives message sent");
       }
     });
   }
 });
 
-// Detect when a new tab is created
+// Monitor new tabs
 chrome.tabs.onCreated.addListener((tab) => {
   if (isTracking) {
-    console.log(`New tab opened: ${tab.id}, URL = ${tab.url || "about:blank"}`);
-    updateTabHistory(tab.id, tab.url || "about:blank");
-    startSession(tab.id, tab.url || "about:blank");
+    console.log(`New tab: ${tab.id}, URL = ${tab.url || "about:blank"}`);
+    recordTabHistory(tab.id, tab.url || "about:blank");
+    beginSession(tab.id, tab.url || "about:blank");
 
-    // Trigger owl animation on new tab
-    chrome.tabs.sendMessage(tab.id, { action: "flyOwl" }, (response) => {
+    // Animate rocket on new tab
+    chrome.tabs.sendMessage(tab.id, { action: "rocketArrives" }, (response) => {
       if (chrome.runtime.lastError) {
-        console.error("Error sending flyOwl message:", chrome.runtime.lastError);
+        console.error("Error sending rocketArrives:", chrome.runtime.lastError);
       } else {
-        console.log(response?.status || "Owl message sent");
+        console.log(response?.status || "Rocket arrives message sent");
       }
     });
   }
 });
 
-// Detect when the user switches between tabs
+// Monitor tab switching
 chrome.tabs.onActivated.addListener((activeInfo) => {
   if (isTracking) {
     chrome.tabs.get(activeInfo.tabId, (tab) => {
-      console.log(`Switched to tab: TabId = ${activeInfo.tabId}, URL = ${tab.url}`);
-      updateTabHistory(activeInfo.tabId, tab.url);
-      startSession(activeInfo.tabId, tab.url);
+      console.log(`Switched to tab ${activeInfo.tabId}: ${tab.url}`);
+      recordTabHistory(activeInfo.tabId, tab.url);
+      beginSession(activeInfo.tabId, tab.url);
 
-      // Trigger owl animation on tab switch
-      chrome.tabs.sendMessage(activeInfo.tabId, { action: "flyOwl" }, (response) => {
+      // Animate rocket on tab switch
+      chrome.tabs.sendMessage(activeInfo.tabId, { action: "rocketArrives" }, (response) => {
         if (chrome.runtime.lastError) {
-          console.error("Error sending flyOwl message:", chrome.runtime.lastError);
+          console.error("Error sending rocketArrives:", chrome.runtime.lastError);
         } else {
-          console.log(response?.status || "Owl message sent");
+          console.log(response?.status || "Rocket arrives message sent");
         }
       });
     });
   }
 });
 
-// Function to update tab history
-function updateTabHistory(tabId, url) {
+// Record tab history
+function recordTabHistory(tabId, url) {
   if (!url || url.startsWith("chrome://") || url.startsWith("about:")) {
     return;
   }
@@ -104,274 +109,211 @@ function updateTabHistory(tabId, url) {
   const history = tabHistory[tabId];
   if (history.length === 0 || history[history.length - 1] !== url) {
     tabHistory[tabId].push(url);
-    console.log(`Updated history for TabId = ${tabId}:`, tabHistory[tabId]);
+    console.log(`Tab ${tabId} history updated:`, tabHistory[tabId]);
   }
 }
 
-// Function to start a new session
-function startSession(tabId, url) {
-  endSession();
+// Start a new session
+function beginSession(tabId, url) {
+  endSession(); // End any existing session first
   if (!url || url.startsWith("chrome://") || url.startsWith("about:")) {
-    console.log(`Skipping session for restricted or blank URL: ${url}`);
+    console.log(`Skipping session for restricted URL: ${url}`);
     return;
   }
   currentSession = { tabId, url, sessionId: Date.now() };
-  console.log(`Starting new session for TabId = ${tabId}, URL = ${url}`);
+  console.log(`Session started for tab ${tabId}, URL = ${url}`);
 
   setTimeout(() => {
     if (currentSession && currentSession.tabId === tabId) {
-      takeScreenshot(url, currentSession.sessionId);
+      captureScreenshot(url, currentSession.sessionId);
     } else {
-      console.log("Session ended before screenshot could be taken.");
+      console.log("Session ended before screenshot capture.");
     }
   }, 4000);
 }
 
-// Function to end the current session
+// End the current session
 function endSession() {
   if (currentSession) {
-    console.log(`Ending session for TabId = ${currentSession.tabId}, URL = ${currentSession.url}`);
+    console.log(`Session ended for tab ${currentSession.tabId}`);
     currentSession = null;
   }
 }
 
-// Function to take a screenshot with error handling
-function takeScreenshot(url, sessionId) {
+// Take a screenshot
+function captureScreenshot(url, sessionId) {
   const now = Date.now();
   if (now - lastCaptureTime < 1000) {
-    console.warn("Skipping screenshot to avoid exceeding rate limit.");
+    console.warn("Skipping screenshot to avoid rate limit.");
     return;
   }
   lastCaptureTime = now;
 
   chrome.tabs.captureVisibleTab(null, { format: "png" }, (dataUrl) => {
     if (chrome.runtime.lastError) {
-      console.error("Error capturing screenshot:", chrome.runtime.lastError.message);
+      console.error("Screenshot error:", chrome.runtime.lastError.message);
       return;
     }
-    console.log(`Screenshot taken for ${url}`);
-    analyzeScreenshotWithOpenAI(dataUrl, currentGoal, sessionId);
+    console.log(`Screenshot captured for ${url}`);
+    analyzeScreenshot(dataUrl, currentGoal, sessionId);
   });
 }
 
 /**
- * Calls the OpenAI API to analyze the screenshot in relation to the current goal.
+ * Call the Gemini (OpenAI client) endpoint to analyze the screenshot
  */
-function analyzeScreenshotWithOpenAI(base64Screenshot, goal, sessionId) {
+function analyzeScreenshot(base64Screenshot, goal, sessionId) {
   if (!currentSession || currentSession.sessionId !== sessionId) {
-    console.log("Session ended or replaced. Disregarding API call.");
+    console.log("Session ended or replaced, ignoring screenshot analysis.");
     return;
   }
 
-  // if running locally, change the URL to "http://localhost:8080/analyze_screenshot"
-  fetch("https://analyze-screenshot-453520806811.us-central1.run.app", {
+  // If running locally, use "http://localhost:8080/analyze_screenshot"
+  fetch("http://localhost:8080/analyze_screenshot", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      base64Screenshot: base64Screenshot,
-      goal: goal,
+      base64Screenshot,
+      goal
     }),
   })
-    .then((response) => response.json())
+    .then((res) => res.json())
     .then((data) => {
       if (!currentSession || currentSession.sessionId !== sessionId) {
-        console.log("Session ended or replaced after API response. Disregarding result.");
+        console.log("Session ended after analysis started, ignoring result.");
         return;
       }
       if (data) {
         const offTaskScore = parseInt(data, 10);
-        console.log("OpenAI Off-Task Confidence Score:", offTaskScore);
+        console.log("Off-task score:", offTaskScore);
         if (offTaskScore > 70) {
-          handleOffTask(currentSession.tabId);
-        } else if (offTaskScore >= 1500) {
-          showBlurOverlay(currentSession.tabId, goal, base64Screenshot);
-        } else {      
-          // Not distracted: instruct content script to remove thought bubble
+          handleSevereOffTask(currentSession.tabId);
+        } else if (offTaskScore >= 30) {
+          handleModerateOffTask(currentSession.tabId, base64Screenshot, goal);
+        } else {
+          // Not off-task: remove any overlay or rocket bubble
           chrome.tabs.sendMessage(currentSession.tabId, { action: "removeThoughtBubble" }, () => {
             if (chrome.runtime.lastError) {
-              console.error("Error sending removeThoughtBubble message:", chrome.runtime.lastError);
+              console.error("removeThoughtBubble error:", chrome.runtime.lastError);
             } else {
-              console.log("Thought bubble removal message sent.");
+              console.log("Thought bubble removed (user on-task).");
             }
           });
         }
       } else {
-        console.error("No valid score returned from server:", data);
+        console.error("No valid score returned:", data);
       }
     })
-    .catch((error) => {
-      console.error("Error calling Python API:", error);
+    .catch((err) => {
+      console.error("Error calling screenshot analysis:", err);
     });
 }
 
-function handleOffTask(tabId) {
-  console.log(`Off-task behavior detected for TabId = ${tabId}`);
-
-  let firstGifSrc = 'https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExc3FjN2ZrZjNwNnp6bzFoMDBxY251aDB2dDZ1MXZiaXluODg0ZXV1bSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l4KhQo2MESJkc6QbS/giphy.gif'; // First GIF (on current page)
-
+function handleSevereOffTask(tabId) {
+  console.log(`Severe off-task detected for tab ${tabId}`);
+  // Show a GIF, then redirect or close
+  let rocketGif = "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExc3FjN2ZrZjNwNnp6bzFoMDBxY251aDB2dDZ1MXZiaXluODg0ZXV1bSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l4KhQo2MESJkc6QbS/giphy.gif"; // sample
   if (tabHistory[tabId] && tabHistory[tabId].length > 1) {
-    // Redirect to the last meaningful page
-    const previousUrl = tabHistory[tabId][tabHistory[tabId].length - 2];
-    console.log(`Redirecting to previous page: ${previousUrl}`);
-
-    // Inject the first GIF before redirecting (on the current page)
-    chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      func: injectGif,
-      args: [firstGifSrc]
-    });
-
-    // Wait for a few seconds before redirecting to give time for GIF to show
+    const prevUrl = tabHistory[tabId][tabHistory[tabId].length - 2];
+    injectGif(tabId, rocketGif);
     setTimeout(() => {
-      chrome.tabs.update(tabId, { url: previousUrl });
-    }, 2000); // Adjust delay as needed
+      chrome.tabs.update(tabId, { url: prevUrl });
+    }, 2000);
   } else {
-    // If the tab is new, show the GIF before closing the tab
-    console.log(`Closing new tab: TabId = ${tabId}`);
-
-    // Inject the first GIF on the current tab (before closure)
-    chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      func: injectGif,
-      args: [firstGifSrc]
-    });
-
-    // Delay tab closure to allow the first GIF to be visible
+    injectGif(tabId, rocketGif);
     setTimeout(() => {
       chrome.tabs.remove(tabId);
-    }, 2000); // Adjust delay as needed
+    }, 2000);
   }
 }
 
-// Helper function to inject the GIF into the page
-function injectGif(gifSrc) {
-  const body = document.body;
-  const img = document.createElement('img');
-  img.src = gifSrc;
-  img.style.position = 'fixed'; // Fixed to cover viewport
-  img.style.top = '50%';
-  img.style.left = '50%';
-  img.style.width = '100vw'; // Fill viewport width
-  img.style.height = '100vh'; // Fill viewport height
-  img.style.objectFit = 'cover'; // Crop if needed, keep centered
-  img.style.transform = 'translate(-50%, -50%)'; // Center correctly
-  img.style.zIndex = '9999999';
-  img.style.pointerEvents = 'none';
-  img.style.opacity = '1';
-  body.appendChild(img);
-}
-
-
-function showBlurOverlay(tabId, goal, base64Screenshot) {
-  console.log(`Intermediate off-task behavior detected for TabId = ${tabId}`);
-
-  // Inject the overlay
+function handleModerateOffTask(tabId, base64Screenshot, goal) {
+  console.log(`Moderate off-task for tab ${tabId}`);
+  // Insert an overlay, ask user to explain
   chrome.scripting.executeScript({
-    target: { tabId: tabId },
-    func: injectBlurOverlay,
+    target: { tabId },
+    func: injectOverlay,
   });
 
-  // Add listener to handle user's response
-  chrome.runtime.onMessage.addListener(function handleOverlayResponse(message, sender, sendResponse) {
-    if (message.type === "overlayResponse" && sender.tab.id === tabId) {
-      chrome.runtime.onMessage.removeListener(handleOverlayResponse);
+  // Listen for user's overlay response
+  chrome.runtime.onMessage.addListener(function overlayResponse(msg, sender) {
+    if (msg.type === "overlayResponse" && sender.tab.id === tabId) {
+      chrome.runtime.onMessage.removeListener(overlayResponse);
+      const userReason = msg.response;
 
-      const userResponse = message.response;
-
-      // if running locally, change the URL to "http://localhost:8080/validate_reason"
-      fetch("https://validate-reason-453520806811.us-central1.run.app", {
+      // If running locally: "http://localhost:8080/validate_reason"
+      fetch("http://localhost:8080/validate_reason", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          base64Screenshot: base64Screenshot,
-          goal: goal,
-          reason: userResponse,
+          base64Screenshot,
+          goal,
+          reason: userReason,
         }),
       })
-        .then((response) => response.json())
-        .then((data) => {
-          console.log("User response validation result:", String(data).toUpperCase());
-          if (String(data).toUpperCase() == "PASS") {
-            console.log("User response validated. Removing overlay.");
+        .then((res) => res.json())
+        .then((validation) => {
+          console.log("User reason validation:", validation);
+          if (String(validation).toUpperCase() === "PASS") {
+            console.log("User is allowed. Removing overlay.");
             chrome.scripting.executeScript({
-              target: { tabId: tabId },
-              func: removeBlurOverlay,
+              target: { tabId },
+              func: removeOverlay,
             });
-            chrome.tabs.sendMessage(currentSession.tabId, { action: "removeThoughtBubble" }, () => {
+            // Also remove the rocket bubble
+            chrome.tabs.sendMessage(tabId, { action: "removeThoughtBubble" }, () => {
               if (chrome.runtime.lastError) {
-                console.error("Error sending removeThoughtBubble message:", chrome.runtime.lastError);
-              } else {
-                console.log("Thought bubble removal message sent.");
+                console.error("Error removing bubble:", chrome.runtime.lastError);
               }
             });
           } else {
-            console.log("User response failed validation. Triggering handleOffTask.");
-            handleOffTask(tabId);
+            console.log("User reason failed. Forcing them off page.");
+            handleSevereOffTask(tabId);
           }
         })
         .catch((error) => {
-          console.error("Error validating user response:", error);
-          handleOffTask(tabId);
+          console.error("Error validating user reason:", error);
+          handleSevereOffTask(tabId);
         });
     }
   });
 }
 
-// Injects the blurred overlay with a text box
-function injectBlurOverlay() {
+// Inject a distracting overlay
+function injectOverlay() {
   const body = document.body;
+  const overlay = document.createElement("div");
+  overlay.id = "rocketOverlay";
+  overlay.style.position = "fixed";
+  overlay.style.top = 0;
+  overlay.style.left = 0;
+  overlay.style.width = "100%";
+  overlay.style.height = "100%";
+  overlay.style.backgroundColor = "rgba(0,0,0,0.7)";
+  overlay.style.zIndex = 999999;
+  overlay.style.display = "flex";
+  overlay.style.flexDirection = "column";
+  overlay.style.alignItems = "center";
+  overlay.style.justifyContent = "center";
+  overlay.style.color = "#fff";
+  overlay.style.fontSize = "18px";
 
-  // Create overlay
-  const overlay = document.createElement('div');
-  overlay.id = 'blur-overlay';
-  overlay.style.position = 'fixed';
-  overlay.style.top = '0';
-  overlay.style.left = '0';
-  overlay.style.width = '100%';
-  overlay.style.height = '100%';
-  overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-  overlay.style.backdropFilter = 'blur(10px)';
-  overlay.style.zIndex = '9999999';
-  overlay.style.display = 'flex';
-  overlay.style.flexDirection = 'column';
-  overlay.style.alignItems = 'center';
-  overlay.style.justifyContent = 'center';
-  overlay.style.color = 'white';
-  overlay.style.fontSize = '18px';
-  overlay.style.textAlign = 'center';
+  const prompt = document.createElement("p");
+  prompt.textContent = "Explain why you need this page:";
+  const input = document.createElement("textarea");
+  input.style.width = "80%";
+  input.style.height = "80px";
+  input.style.marginTop = "20px";
+  const submitBtn = document.createElement("button");
+  submitBtn.textContent = "Submit";
+  submitBtn.style.marginTop = "20px";
 
-  // Add prompt
-  const prompt = document.createElement('p');
-  prompt.textContent = 'Why do you need to access this page?';
-
-  // Add text box
-  const input = document.createElement('textarea');
-  input.style.width = '80%';
-  input.style.height = '100px';
-  input.style.marginTop = '20px';
-  input.style.fontSize = '16px';
-  input.style.padding = '10px';
-
-  // Add submit button
-  const button = document.createElement('button');
-  button.textContent = 'Submit';
-  button.style.marginTop = '20px';
-  button.style.padding = '10px 20px';
-  button.style.fontSize = '16px';
-  button.style.cursor = 'pointer';
-
-  // Append elements
   overlay.appendChild(prompt);
   overlay.appendChild(input);
-  overlay.appendChild(button);
+  overlay.appendChild(submitBtn);
   body.appendChild(overlay);
 
-  // Add event listener to submit button
-  button.addEventListener('click', () => {
+  submitBtn.addEventListener("click", () => {
     const userResponse = input.value.trim();
     if (userResponse) {
       chrome.runtime.sendMessage({ type: "overlayResponse", response: userResponse });
@@ -380,73 +322,97 @@ function injectBlurOverlay() {
   });
 }
 
-// Removes the blurred overlay
-function removeBlurOverlay() {
-  const overlay = document.getElementById('blur-overlay');
+// Remove the overlay
+function removeOverlay() {
+  const overlay = document.getElementById("rocketOverlay");
   if (overlay) {
     overlay.remove();
   }
 }
-let pomodoroInterval = null;
-let pomodoroRemainingTime = 1500; // 30 seconds
-let pomodoroStatus = "stopped"; // "stopped", "running", or "paused"
 
-// Handle Pomodoro timer messages
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "startPomodoro") {
+// Inject a GIF
+function injectGif(tabId, gifUrl) {
+  chrome.scripting.executeScript({
+    target: { tabId },
+    func: (url) => {
+      const body = document.body;
+      const gif = document.createElement("img");
+      gif.src = url;
+      gif.style.position = "fixed";
+      gif.style.top = "50%";
+      gif.style.left = "50%";
+      gif.style.width = "100vw";
+      gif.style.height = "100vh";
+      gif.style.objectFit = "cover";
+      gif.style.transform = "translate(-50%, -50%)";
+      gif.style.zIndex = "9999999";
+      gif.style.pointerEvents = "none";
+      body.appendChild(gif);
+    },
+    args: [gifUrl],
+  });
+}
+
+/* --------------------------------------------------------
+   POMODORO TIMER LOGIC ADDED HERE
+   -------------------------------------------------------- */
+
+let pomodoroInterval = null;
+let pomodoroRemainingTime = 1500; // 25 minutes
+let pomodoroStatus = "stopped";   // "stopped", "running", "paused"
+
+// Listen for Pomodoro messages from popup.js
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === "startPomodoro") {
     if (pomodoroStatus !== "running") {
       pomodoroStatus = "running";
-      startPomodoroTimer();
+      startPomodoroCountdown();
     }
     sendResponse({ success: true });
-  } else if (message.type === "pausePomodoro") {
+  } else if (msg.type === "pausePomodoro") {
     if (pomodoroStatus === "running") {
       pomodoroStatus = "paused";
       clearInterval(pomodoroInterval);
     }
     sendResponse({ success: true });
-  } else if (message.type === "resumePomodoro") {
+  } else if (msg.type === "resumePomodoro") {
     if (pomodoroStatus === "paused") {
       pomodoroStatus = "running";
-      startPomodoroTimer();
+      startPomodoroCountdown();
     }
     sendResponse({ success: true });
-  } else if (message.type === "resetPomodoro") {
+  } else if (msg.type === "resetPomodoro") {
     pomodoroStatus = "stopped";
     clearInterval(pomodoroInterval);
-    pomodoroRemainingTime = 1500; // Reset to 30 seconds
+    pomodoroRemainingTime = 1500; // reset to 25 mins
     sendResponse({ success: true });
-  } else if (message.type === "getPomodoroStatus") {
+  } else if (msg.type === "getPomodoroStatus") {
     sendResponse({
       success: true,
       remainingTime: pomodoroRemainingTime,
       status: pomodoroStatus,
     });
-  } else {
-    sendResponse({ success: false });
   }
-  return true; // Required for async sendResponse
 });
 
-// Start the Pomodoro timer
-function startPomodoroTimer() {
+// Start the countdown
+function startPomodoroCountdown() {
+  clearInterval(pomodoroInterval);
   pomodoroInterval = setInterval(() => {
     if (pomodoroRemainingTime > 0) {
       pomodoroRemainingTime--;
     } else {
       clearInterval(pomodoroInterval);
       pomodoroStatus = "stopped";
-      notifyUser("Time's up! Take a break.");
+      // Notify user that time is up
+      chrome.notifications.create({
+        type: "basic",
+        iconUrl: "icon.png",
+        title: "Pomodoro Timer",
+        message: "Time’s up! Great job!",
+        priority: 2
+      });
     }
   }, 1000);
 }
 
-// Notify the user when the timer ends
-function notifyUser(message) {
-  chrome.notifications.create({
-    type: "basic",
-    iconUrl: "icon.png",
-    title: "Pomodoro Timer",
-    message: message,
-  });
-}

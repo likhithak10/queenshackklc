@@ -1,156 +1,171 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const goalContainer = document.getElementById("goalContainer");
-  const timerContainer = document.getElementById("timerContainer");
+  const missionContainer = document.getElementById("missionContainer");
+  const defaultPomodoroTime = 1500; 
 
-  // ----- Existing Tracking & UI Code ----- //
   chrome.runtime.sendMessage({ type: "getTrackingState" }, (response) => {
     if (response.isTracking) {
-      displayActiveGoal(response.goal);
+      showActiveMission(response.goal);
     } else {
-      displayGoalInput();
+      showMissionSetup();
     }
   });
 
-  function displayGoalInput() {
-    goalContainer.innerHTML = `
-      <h1 class="space-title">Space Explorer</h1>
-      <p class="space-paragraph">Set your mission goal for this session:</p>
-      <input type="text" id="goalInput" class="space-input" placeholder="e.g., Complete my essay..." />
-      <button id="startBtn" class="space-button">Start Mission</button>
-      <p id="statusMessage" class="space-status"></p>
+  function showMissionSetup() {
+    missionContainer.innerHTML = `
+      <h1 class="rocket-title">RocketFocus</h1>
+      <p class="rocket-paragraph">Enter your mission objective below:</p>
+
+      <img 
+        src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExc3FjN2ZrZjNwNnp6bzFoMDBxY251aDB2dDZ1MXZiaXluODg0ZXV1bSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l4KhQo2MESJkc6QbS/giphy.gif" 
+        alt="Rocket GIF" 
+        class="rocket-image"
+        id="rocketGif"
+      />
+
+      <input 
+        type="text" 
+        id="missionInput" 
+        class="rocket-input" 
+        placeholder="e.g. Finish reading Chapter 3..."
+      />
+      <button id="launchBtn" class="rocket-button">Launch Mission</button>
+      <p id="statusMessage" class="rocket-status"></p>
     `;
-    document.getElementById("startBtn").addEventListener("click", () => {
-      const goalInput = document.getElementById("goalInput").value.trim();
-      if (goalInput === "") {
-        updateStatusMessage("Please enter a valid mission goal!", "red");
+
+    document.getElementById("launchBtn").addEventListener("click", () => {
+      const missionValue = document.getElementById("missionInput").value.trim();
+      if (!missionValue) {
+        updateStatus("Please enter a valid mission objective!", "red");
         return;
       }
-      chrome.runtime.sendMessage({ type: "startTracking", goal: goalInput }, (response) => {
+      chrome.runtime.sendMessage({ type: "startTracking", goal: missionValue }, (response) => {
         if (response.success) {
-          displayActiveGoal(response.goal);
-          sendSpaceshipToWebpage();
+          showActiveMission(response.goal);
+          sendRocketToActiveTab();
         } else {
-          updateStatusMessage("Mission failed to start. Try again!", "red");
+          updateStatus("Failed to launch mission. Try again!", "red");
         }
       });
     });
   }
 
-  function displayActiveGoal(goal) {
-    goalContainer.innerHTML = `
-      <h1 class="space-title">Current Mission:</h1>
-      <p class="space-paragraph">${goal}</p>
-      <button id="stopBtn" class="space-button">Mission Complete</button>
-      <p id="statusMessage" class="space-status"></p>
+  function showActiveMission(missionGoal) {
+    missionContainer.innerHTML = `
+      <h1 class="rocket-title">Mission in Progress</h1>
+      <p class="rocket-paragraph">${missionGoal}</p>
+      <button id="completeBtn" class="rocket-button">Complete Mission</button>
+      <p id="statusMessage" class="rocket-status"></p>
     `;
-    document.getElementById("stopBtn").addEventListener("click", () => {
+
+    document.getElementById("completeBtn").addEventListener("click", () => {
       chrome.runtime.sendMessage({ type: "stopTracking" }, (response) => {
         if (response.success) {
-          sendSpaceshipAwayToAllWebpages();
-          displayGoalInput();
+          recallRocketFromAllTabs();
+          showMissionSetup();
         } else {
-          updateStatusMessage("Mission failed to stop. Try again!", "red");
+          updateStatus("Mission completion failed!", "red");
         }
       });
     });
   }
 
-  function updateStatusMessage(message, color) {
+  function updateStatus(msg, color) {
     const statusMessage = document.getElementById("statusMessage");
     if (!statusMessage) return;
-    statusMessage.textContent = message;
+    statusMessage.textContent = msg;
     statusMessage.style.color = color;
   }
 
-  function sendSpaceshipToWebpage() {
+  function sendRocketToActiveTab() {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, { action: "flySpaceship" });
+      if (tabs[0]) {
+        chrome.tabs.sendMessage(tabs[0].id, { action: "rocketArrives" });
+      }
     });
   }
 
-  function sendSpaceshipAwayToAllWebpages() {
+  function recallRocketFromAllTabs() {
     chrome.tabs.query({}, (tabs) => {
       tabs.forEach((tab) => {
-        chrome.tabs.sendMessage(tab.id, { action: "flySpaceshipAway" });
+        chrome.tabs.sendMessage(tab.id, { action: "rocketDeparts" });
       });
     });
   }
 
-  // ----- Helper for Time Formatting ----- //
   function formatTime(seconds) {
     const m = Math.floor(seconds / 60).toString().padStart(2, "0");
     const s = (seconds % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   }
 
-  // ----- Pomodoro Timer UI & Polling ----- //
-  function displayPomodoroTimer() {
+  function showPomodoroTimer() {
+    const timerContainer = document.createElement("div");
+    timerContainer.id = "timerContainer";
+    document.body.appendChild(timerContainer);
+
     timerContainer.innerHTML = `
-      <h2 class="space-title">Pomodoro Timer</h2>
-      <p id="timerDisplay" class="space-paragraph">${formatTime(1500)}</p>
+      <h2 class="rocket-title">Focus Timer</h2>
+      <p id="timerDisplay" class="rocket-paragraph">${formatTime(defaultPomodoroTime)}</p>
       <div>
-        <button id="startPomodoroBtn" class="space-button">Start</button>
-        <button id="pausePomodoroBtn" class="space-button" style="display: none;">Pause</button>
-        <button id="resetPomodoroBtn" class="space-button">Reset</button>
+        <button id="startTimerBtn" class="rocket-button">Start</button>
+        <button id="pauseTimerBtn" class="rocket-button" style="display: none;">Pause</button>
+        <button id="resetTimerBtn" class="rocket-button">Reset</button>
       </div>
     `;
-    document.getElementById("startPomodoroBtn").addEventListener("click", () => {
+
+    document.getElementById("startTimerBtn").addEventListener("click", () => {
       chrome.runtime.sendMessage({ type: "startPomodoro" }, (response) => {
-        if (response.success) {
-          updateTimerUI();
-        }
+        if (response.success) refreshTimerUI();
       });
     });
 
-    document.getElementById("pausePomodoroBtn").addEventListener("click", () => {
-      const btn = document.getElementById("pausePomodoroBtn");
+    document.getElementById("pauseTimerBtn").addEventListener("click", () => {
+      const btn = document.getElementById("pauseTimerBtn");
       if (btn.textContent === "Pause") {
         chrome.runtime.sendMessage({ type: "pausePomodoro" }, (response) => {
-          if (response.success) {
-            updateTimerUI();
-          }
+          if (response.success) refreshTimerUI();
         });
       } else {
         chrome.runtime.sendMessage({ type: "resumePomodoro" }, (response) => {
-          if (response.success) {
-            updateTimerUI();
-          }
+          if (response.success) refreshTimerUI();
         });
       }
     });
 
-    document.getElementById("resetPomodoroBtn").addEventListener("click", () => {
+    document.getElementById("resetTimerBtn").addEventListener("click", () => {
       chrome.runtime.sendMessage({ type: "resetPomodoro" }, (response) => {
-        if (response.success) {
-          updateTimerUI();
-        }
+        if (response.success) refreshTimerUI();
       });
     });
 
-    // Poll the timer status every second while the popup is open
-    setInterval(updateTimerUI, 1000);
+    setInterval(refreshTimerUI, 1000);
   }
 
-  function updateTimerUI() {
+  function refreshTimerUI() {
     chrome.runtime.sendMessage({ type: "getPomodoroStatus" }, (response) => {
       if (response.success) {
         document.getElementById("timerDisplay").textContent = formatTime(response.remainingTime);
+        const pauseBtn = document.getElementById("pauseTimerBtn");
+        const startBtn = document.getElementById("startTimerBtn");
         if (response.status === "running") {
-          document.getElementById("startPomodoroBtn").style.display = "none";
-          document.getElementById("pausePomodoroBtn").style.display = "inline-block";
-          document.getElementById("pausePomodoroBtn").textContent = "Pause";
+          startBtn.style.display = "none";
+          pauseBtn.style.display = "inline-block";
+          pauseBtn.textContent = "Pause";
         } else if (response.status === "paused") {
-          document.getElementById("startPomodoroBtn").style.display = "none";
-          document.getElementById("pausePomodoroBtn").style.display = "inline-block";
-          document.getElementById("pausePomodoroBtn").textContent = "Resume";
+          startBtn.style.display = "none";
+          pauseBtn.style.display = "inline-block";
+          pauseBtn.textContent = "Resume";
         } else {
-          document.getElementById("startPomodoroBtn").style.display = "inline-block";
-          document.getElementById("pausePomodoroBtn").style.display = "none";
+          startBtn.style.display = "inline-block";
+          pauseBtn.style.display = "none";
         }
       }
     });
   }
 
-  // Initialize the Pomodoro timer UI on popup load
-  displayPomodoroTimer();
+  showMissionSetup();
+  showPomodoroTimer();
 });
+
+
+

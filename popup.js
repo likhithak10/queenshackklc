@@ -1,83 +1,88 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const goalInput = document.getElementById("goalInput");
-  const blockingCheckbox = document.getElementById("blockingCheckbox");
-  const saveBtn = document.getElementById("saveBtn");
-  const statusMsg = document.getElementById("statusMsg");
+  const goalContainer = document.getElementById("goalContainer");
+  let finalSpaceshipPosition = null;
 
-  const startPomodoroBtn = document.getElementById("startPomodoroBtn");
-  const resetPomodoroBtn = document.getElementById("resetPomodoroBtn");
-  const pomodoroDisplay = document.getElementById("pomodoroDisplay");
-
-  let pomodoroTimerInterval;
-  let remainingTime = 25 * 60; // 25 minutes in seconds
-  let isPomodoroRunning = false;
-
-  // Load stored settings
-  chrome.storage.sync.get(["userGoal", "blockingEnabled"], (data) => {
-    if (data.userGoal) goalInput.value = data.userGoal;
-    if (typeof data.blockingEnabled === "boolean") {
-      blockingCheckbox.checked = data.blockingEnabled;
-    }
-  });
-
-  // Save user settings
-  saveBtn.addEventListener("click", () => {
-    const userGoal = goalInput.value.trim();
-    const blockingEnabled = blockingCheckbox.checked;
-
-    chrome.storage.sync.set({ userGoal, blockingEnabled }, () => {
-      statusMsg.textContent = "Settings saved!";
-      setTimeout(() => {
-        statusMsg.textContent = "";
-      }, 1500);
-    });
-  });
-
-  // Pomodoro timer functions
-  function startPomodoroTimer() {
-    pomodoroTimerInterval = setInterval(() => {
-      if (remainingTime > 0) {
-        remainingTime--;
-        updatePomodoroDisplay();
-      } else {
-        clearInterval(pomodoroTimerInterval);
-        pomodoroDisplay.textContent = "Pomodoro Complete! Time for a break.";
-        startPomodoroBtn.textContent = "Start Pomodoro";
-        isPomodoroRunning = false;
-        resetPomodoroBtn.disabled = true;
-        alert("Pomodoro complete! Take a 5-minute break.");
-      }
-    }, 1000);
-  }
-
-  function updatePomodoroDisplay() {
-    const minutes = Math.floor(remainingTime / 60);
-    const seconds = remainingTime % 60;
-    pomodoroDisplay.textContent = `Pomodoro Time: ${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-  }
-
-  // Button event listeners
-  startPomodoroBtn.addEventListener("click", () => {
-    if (isPomodoroRunning) {
-      clearInterval(pomodoroTimerInterval);
-      startPomodoroBtn.textContent = "Start Pomodoro";
-      resetPomodoroBtn.disabled = false;
+  // Fetch the current tracking state
+  chrome.runtime.sendMessage({ type: "getTrackingState" }, (response) => {
+    if (response.isTracking) {
+      displayActiveGoal(response.goal);
     } else {
-      startPomodoroTimer();
-      startPomodoroBtn.textContent = "Pause Pomodoro";
-      resetPomodoroBtn.disabled = false;
+      displayGoalInput();
     }
-    isPomodoroRunning = !isPomodoroRunning;
   });
 
-  resetPomodoroBtn.addEventListener("click", () => {
-    clearInterval(pomodoroTimerInterval);
-    remainingTime = 25 * 60;
-    updatePomodoroDisplay();
-    startPomodoroBtn.textContent = "Start Pomodoro";
-    resetPomodoroBtn.disabled = true;
-  });
+  // Display the goal input field
+  function displayGoalInput() {
+    goalContainer.innerHTML = `
+      <h1 class="space-title">Space Explorer</h1>
+      <p class="space-paragraph">Set your mission goal for this session:</p>
+      <input 
+        type="text" 
+        id="goalInput" 
+        class="space-input" 
+        placeholder="e.g., Complete my essay..."
+      />
+      <button id="startBtn" class="space-button">Start Mission</button>
+      <p id="statusMessage" class="space-status"></p>
+    `;
 
-  // Initialize pomodoro display
-  updatePomodoroDisplay();
+    document.getElementById("startBtn").addEventListener("click", () => {
+      const goalInput = document.getElementById("goalInput").value.trim();
+      if (goalInput === "") {
+        updateStatusMessage("Please enter a valid mission goal!", "red");
+        return;
+      }
+
+      chrome.runtime.sendMessage({ type: "startTracking", goal: goalInput }, (response) => {
+        if (response.success) {
+          displayActiveGoal(response.goal);
+          sendSpaceshipToWebpage();
+        } else {
+          updateStatusMessage("Mission failed to start. Try again!", "red");
+        }
+      });
+    });
+  }
+
+  // Display the active goal
+  function displayActiveGoal(goal) {
+    goalContainer.innerHTML = `
+      <h1 class="space-title">Current Mission:</h1>
+      <p class="space-paragraph">${goal}</p>
+      <button id="stopBtn" class="space-button">Mission Complete</button>
+      <p id="statusMessage" class="space-status"></p>
+    `;
+
+    document.getElementById("stopBtn").addEventListener("click", () => {
+      chrome.runtime.sendMessage({ type: "stopTracking" }, (response) => {
+        if (response.success) {
+          sendSpaceshipAwayToAllWebpages();
+          displayGoalInput();
+        } else {
+          updateStatusMessage("Mission failed to stop. Try again!", "red");
+        }
+      });
+    });
+  }
+
+  function updateStatusMessage(message, color) {
+    const statusMessage = document.getElementById("statusMessage");
+    if (!statusMessage) return;
+    statusMessage.textContent = message;
+    statusMessage.style.color = color;
+  }
+
+  function sendSpaceshipToWebpage() {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      chrome.tabs.sendMessage(tabs[0].id, { action: "flySpaceship" });
+    });
+  }
+
+  function sendSpaceshipAwayToAllWebpages() {
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach((tab) => {
+        chrome.tabs.sendMessage(tab.id, { action: "flySpaceshipAway" });
+      });
+    });
+  }
 });

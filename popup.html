@@ -1,32 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <title>SOT Hackathon</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <div class="popup-container">
-    <h2>SOT Hackathon</h2>
-    <label for="goalInput">Your Focus Goal:</label>
-    <input type="text" id="goalInput" />
-
-    <div class="checkbox-container">
-      <input type="checkbox" id="blockingCheckbox" class="checkmark-input" />
-      <label for="blockingCheckbox" class="checkmark-label">Start Extension</label>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Space Explorer</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div id="galaxyBackground">
+      <div id="goalContainer"></div>
     </div>
-
-    <button id="saveBtn">Start Focusing</button>
-    <p id="statusMsg"></p>
-
-    <!-- Pomodoro Timer Section -->
-    <div id="pomodoroTimer">
-      <p id="pomodoroDisplay">Pomodoro Time: 1:00</p>
-      <button id="startPomodoroBtn">Start Pomodoro</button>
-      <button id="resetPomodoroBtn" disabled>Reset Timer</button>
-    </div>
-  </div>
-
-  <script src="popup.js"></script>
-</body>
+    <script src="popup.js" defer></script>
+  </body>
 </html>

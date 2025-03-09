@@ -4,7 +4,7 @@
   "name": "Space Explorer",
   "version": "1.0",
   "description": "Explore the galaxy of productivity with your spaceship companion!",
-  "permissions": ["activeTab", "scripting"],
+  "permissions": ["activeTab", "scripting", "notifications"],
   "host_permissions": ["<all_urls>"],
   "web_accessible_resources": [
     {

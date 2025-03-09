@@ -1,7 +1,6 @@
 const SPACESHIP_GIF_URL = "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExc3FjN2ZrZjNwNnp6bzFoMDBxY251aDB2dDZ1MXZiaXluODg0ZXV1bSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l4KhQo2MESJkc6QbS/giphy.gif"; // Spaceship GIF
 let currentSpaceship = null;
 
-// Append CSS for animations
 (function addAnimationCSS() {
   if (document.getElementById('animationStyle')) return;
   const styleElem = document.createElement('style');
@@ -16,7 +15,6 @@ let currentSpaceship = null;
   document.head.appendChild(styleElem);
 })();
 
-// Function to animate the spaceship flying in
 function animateSpaceshipIntoScreen() {
   if (currentSpaceship) {
     currentSpaceship.remove();
@@ -44,7 +42,6 @@ function animateSpaceshipIntoScreen() {
   }, 1200);
 }
 
-// Function to animate the spaceship flying away
 function animateSpaceshipAway() {
   if (!currentSpaceship) return;
 
@@ -61,7 +58,6 @@ function animateSpaceshipAway() {
   }, { once: true });
 }
 
-// Listen for messages
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "flySpaceship") {
     animateSpaceshipIntoScreen();

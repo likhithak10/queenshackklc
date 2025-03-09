@@ -387,11 +387,18 @@ function removeBlurOverlay() {
     overlay.remove();
   }
 }
+// --- Pomodoro Timer Variables ---
+// --- Pomodoro Timer Variables ---
 let pomodoroInterval = null;
-let pomodoroRemainingTime = 1500; // 30 seconds
-let pomodoroStatus = "stopped"; // "stopped", "running", or "paused"
+let pomodoroRemainingTime = 1500; // 25 minutes
+let pomodoroStatus = "stopped";   // "stopped", "running", or "paused"
 
-// Handle Pomodoro timer messages
+// --- Break Timer Variables ---
+let breakInterval = null;
+let breakRemainingTime = 300;     // 5 minutes (300 seconds)
+let breakActive = false;
+
+// Listen for Pomodoro messages from popup.js
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "startPomodoro") {
     if (pomodoroStatus !== "running") {
@@ -414,7 +421,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === "resetPomodoro") {
     pomodoroStatus = "stopped";
     clearInterval(pomodoroInterval);
-    pomodoroRemainingTime = 1500; // Reset to 30 seconds
+    pomodoroRemainingTime = 1500;
+    stopBreakTimer(); // In case a break was running
     sendResponse({ success: true });
   } else if (message.type === "getPomodoroStatus") {
     sendResponse({
@@ -425,28 +433,69 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else {
     sendResponse({ success: false });
   }
-  return true; // Required for async sendResponse
+  return true;
 });
 
-// Start the Pomodoro timer
+// Start the 25-minute timer
 function startPomodoroTimer() {
+  clearInterval(pomodoroInterval); // Ensure no old intervals
   pomodoroInterval = setInterval(() => {
     if (pomodoroRemainingTime > 0) {
       pomodoroRemainingTime--;
     } else {
       clearInterval(pomodoroInterval);
       pomodoroStatus = "stopped";
-      notifyUser("Time's up! Take a break.");
+      // Notify user and show alert
+      notifyUser("Time’s up! 5-minute break started.");
+      showAlertInActiveTab("You finished 25 minutes! Your 5-minute break just started.");
+      // Automatically start the break
+      startBreakTimer();
     }
   }, 1000);
 }
 
-// Notify the user when the timer ends
+// Start a 5-minute break
+function startBreakTimer() {
+  stopBreakTimer(); // Just in case
+  breakRemainingTime = 300; // 5 minutes
+  breakActive = true;
+  breakInterval = setInterval(() => {
+    breakRemainingTime--;
+    if (breakRemainingTime <= 0) {
+      stopBreakTimer();
+      // Notify user and show alert
+      notifyUser("Break is over! Time to get back to work!");
+      showAlertInActiveTab("Your 5-minute break ended. Time to work again!");
+    }
+  }, 1000);
+}
+
+// Stop the break timer if running
+function stopBreakTimer() {
+  clearInterval(breakInterval);
+  breakActive = false;
+  breakRemainingTime = 300;
+}
+
+// Send a Chrome desktop notification
 function notifyUser(message) {
   chrome.notifications.create({
     type: "basic",
-    iconUrl: "icon.png",
+    iconUrl: "icon.png", // Ensure this file exists in your extension
     title: "Pomodoro Timer",
     message: message,
+  });
+}
+
+// Show an alert in the currently active tab
+function showAlertInActiveTab(msg) {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0]) {
+      chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        func: (message) => alert(message),
+        args: [msg],
+      });
+    }
   });
 }

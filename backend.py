@@ -5,10 +5,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 # Replace with your own method of securely loading the API key
-client = OpenAI(
-    api_key=os.environ.get("GEMINI_API_KEY"),
-    base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
-)
+
 
 @app.route("/analyze_screenshot", methods=["POST"])
 def analyze_screenshot():
@@ -92,10 +89,10 @@ def validate_reason():
         }
     ],
             temperature=0.0,
-            max_tokens=10  # We only need a short numeric answer
+            max_tokens=20
         )
 
-        # Extract the response text
+        
         if response.choices and len(response.choices) > 0:
             result = response.choices[0].message.content.strip()
         else:

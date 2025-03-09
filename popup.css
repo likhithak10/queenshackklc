@@ -1,0 +1,111 @@
+/* Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Galaxy background */
+#galaxyBackground {
+  width: 700px;
+  min-height: 400px;
+  background: radial-gradient(circle, #000428, #004e92);
+  border-radius: 15px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+/* Container for the goal content */
+#goalContainer {
+  width: 90%;
+  margin: 20px;
+  padding: 25px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+  color: white;
+}
+
+/* Title text */
+.space-title {
+  margin-bottom: 15px;
+  font-size: 1.5rem;
+  color: #ffd700; /* Gold */
+  text-shadow: 0 0 5px #ffd700;
+}
+
+/* Paragraph text */
+.space-paragraph {
+  margin-bottom: 15px;
+  font-size: 1rem;
+  color: #ffffff;
+}
+
+/* Input field */
+.space-input {
+  display: block;
+  width: 100%;
+  margin: 0 auto 15px;
+  padding: 12px;
+  font-size: 1rem;
+  border: 2px solid #00bfff; /* Neon blue */
+  border-radius: 8px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  text-align: center;
+}
+
+/* Button */
+.space-button {
+  padding: 12px 20px;
+  margin: 10px auto;
+  display: inline-block;
+  font-size: 1rem;
+  cursor: pointer;
+  border: 2px solid #00bfff;
+  border-radius: 8px;
+  background: linear-gradient(to bottom, #004e92, #000428);
+  color: white;
+  font-weight: bold;
+  text-shadow: 0 0 5px #00bfff;
+  box-shadow: 0 0 10px #00bfff;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.space-button:hover {
+  transform: scale(1.03);
+  box-shadow: 0 0 15px #00bfff;
+}
+
+.space-button:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 5px #00bfff;
+}
+
+/* Status message */
+.space-status {
+  margin-top: 15px;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #ffd700;
+  text-shadow: 0 0 5px #ffd700;
+}
+
+/* Timer container styling */
+#timerContainer {
+  width: 90%;
+  margin: 20px;
+  padding: 25px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+  color: white;
+}
+

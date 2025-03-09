@@ -2,7 +2,7 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === "OFF_TASK_WARNING") {
       const { url, goal, aiResult } = request.payload;
-      showOverlay(`You said your goal is "${goal}", but you're on "${url}".\nAI says: ${aiResult || "n/a"}`);
+      showOverlay(`You said your goal is "${goal}", but you're on "${url}".\n Focus Up`);
     }
   });
   
@@ -25,7 +25,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       overlay.style.justifyContent = "center";
       overlay.style.alignItems = "center";
       overlay.style.textAlign = "center";
-      overlay.style.fontSize = "1.2rem";
+      overlay.style.fontSize = "1rem";
       document.body.appendChild(overlay);
     }
     overlay.innerHTML = `

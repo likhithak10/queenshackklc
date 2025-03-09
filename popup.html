@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <title>SOT Hackathon</title>
@@ -7,17 +7,24 @@
 </head>
 <body>
   <div class="popup-container">
-    <h2>SOT  Hackathon</h2>
+    <h2>SOT Hackathon</h2>
     <label for="goalInput">Your Focus Goal:</label>
-    <input type="text" id="goalInput" placeholder="e.g. Study Calculus" />
+    <input type="text" id="goalInput" />
 
-    <div style="margin-top: 10px;">
-      <input type="checkbox" id="blockingCheckbox" />
-      <label for="blockingCheckbox">Enable Blocking</label>
+    <div class="checkbox-container">
+      <input type="checkbox" id="blockingCheckbox" class="checkmark-input" />
+      <label for="blockingCheckbox" class="checkmark-label">Start Extension</label>
     </div>
 
-    <button id="saveBtn">Save Settings</button>
+    <button id="saveBtn">Start Focusing</button>
     <p id="statusMsg"></p>
+
+    <!-- Pomodoro Timer Section -->
+    <div id="pomodoroTimer">
+      <p id="pomodoroDisplay">Pomodoro Time: 1:00</p>
+      <button id="startPomodoroBtn">Start Pomodoro</button>
+      <button id="resetPomodoroBtn" disabled>Reset Timer</button>
+    </div>
   </div>
 
   <script src="popup.js"></script>

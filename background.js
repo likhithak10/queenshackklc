@@ -185,7 +185,7 @@ function analyzeScreenshotWithOpenAI(base64Screenshot, goal, sessionId) {
         console.log("OpenAI Off-Task Confidence Score:", offTaskScore);
         if (offTaskScore > 70) {
           handleOffTask(currentSession.tabId);
-        } else if (offTaskScore >= 30) {
+        } else if (offTaskScore >= 1500) {
           showBlurOverlay(currentSession.tabId, goal, base64Screenshot);
         } else {      
           // Not distracted: instruct content script to remove thought bubble
@@ -386,4 +386,67 @@ function removeBlurOverlay() {
   if (overlay) {
     overlay.remove();
   }
+}
+let pomodoroInterval = null;
+let pomodoroRemainingTime = 1500; // 30 seconds
+let pomodoroStatus = "stopped"; // "stopped", "running", or "paused"
+
+// Handle Pomodoro timer messages
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "startPomodoro") {
+    if (pomodoroStatus !== "running") {
+      pomodoroStatus = "running";
+      startPomodoroTimer();
+    }
+    sendResponse({ success: true });
+  } else if (message.type === "pausePomodoro") {
+    if (pomodoroStatus === "running") {
+      pomodoroStatus = "paused";
+      clearInterval(pomodoroInterval);
+    }
+    sendResponse({ success: true });
+  } else if (message.type === "resumePomodoro") {
+    if (pomodoroStatus === "paused") {
+      pomodoroStatus = "running";
+      startPomodoroTimer();
+    }
+    sendResponse({ success: true });
+  } else if (message.type === "resetPomodoro") {
+    pomodoroStatus = "stopped";
+    clearInterval(pomodoroInterval);
+    pomodoroRemainingTime = 1500; // Reset to 30 seconds
+    sendResponse({ success: true });
+  } else if (message.type === "getPomodoroStatus") {
+    sendResponse({
+      success: true,
+      remainingTime: pomodoroRemainingTime,
+      status: pomodoroStatus,
+    });
+  } else {
+    sendResponse({ success: false });
+  }
+  return true; // Required for async sendResponse
+});
+
+// Start the Pomodoro timer
+function startPomodoroTimer() {
+  pomodoroInterval = setInterval(() => {
+    if (pomodoroRemainingTime > 0) {
+      pomodoroRemainingTime--;
+    } else {
+      clearInterval(pomodoroInterval);
+      pomodoroStatus = "stopped";
+      notifyUser("Time's up! Take a break.");
+    }
+  }, 1000);
+}
+
+// Notify the user when the timer ends
+function notifyUser(message) {
+  chrome.notifications.create({
+    type: "basic",
+    iconUrl: "icon.png",
+    title: "Pomodoro Timer",
+    message: message,
+  });
 }

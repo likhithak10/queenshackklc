@@ -1,0 +1,4 @@
+.env*
+.venv
+.DS_Store
+GEMINI_API_KEY = "AIzaSyCQ_wCVF3aoHOUiAfWhkOQF7LHD6pq8Tuc"

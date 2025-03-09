@@ -1,5 +1,5 @@
 // background.js
-// background.js (top of file)
+
 importScripts('config.js');
 
 // Example distractors
@@ -16,9 +16,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
       const currentUrl = tab.url || "";
 
-      // If the user is obviously on a distractor domain, or we can do an AI check
+      // If the user is obviously on a distractor domain, or we need an AI check
       if (isKnownDistractor(currentUrl) || needAiCheck(userGoal, currentUrl)) {
-        // Optionally do an AI check. Or we can skip if we just do domain-based blocking
         doAiCheckIfNeeded(tabId, currentUrl, userGoal);
       }
     });
@@ -30,47 +29,52 @@ function isKnownDistractor(url) {
   return defaultDistractors.some(site => lowerUrl.includes(site));
 }
 
+// Check if the URL is related to the user's goal
 function needAiCheck(goal, url) {
-  // For demonstration, let's say if the user has a goal set, we do an AI check
-  // or do a naive check if the URL doesn't match the goal
   const lowerUrl = url.toLowerCase();
   const lowerGoal = goal.toLowerCase();
-  return (goal && !lowerUrl.includes(lowerGoal));
+
+  // If the goal exists and the URL doesn't contain the exact goal word, we check for related topics
+  if (goal && !lowerUrl.includes(lowerGoal)) {
+    // Define a list of related terms based on the user's goal
+    const relatedTerms = getRelatedTerms(goal);
+    return !relatedTerms.some(term => lowerUrl.includes(term));
+  }
+  return false; // If the URL already contains the goal, no need to block
+}
+
+// Get related terms for the goal
+function getRelatedTerms(goal) {
+  const relatedKeywords = {
+    "calculus": ["math", "algebra", "geometry", "trigonometry", "maths", "functions", "integration", "differentiation"],
+    "history": ["historical", "civilization", "ancient", "war", "history", "timeline"],
+    "biology": ["bio", "science", "genetics", "evolution", "cells", "microbiology", "ecology"],
+    "programming": ["code", "developer", "python", "javascript", "software", "algorithms"]
+  };
+
+  // Return the relevant related terms based on the goal
+  return relatedKeywords[goal.toLowerCase()] || [];
 }
 
 async function doAiCheckIfNeeded(tabId, url, goal) {
-  // 1) Capture a screenshot
+  // Capture screenshot and make AI request as shown earlier
   chrome.tabs.captureVisibleTab(null, { format: "png" }, async (dataUrl) => {
-    if (!dataUrl) {
-      // fallback: just send message to content script
-      chrome.tabs.sendMessage(tabId, { type: "OFF_TASK_WARNING", payload: { url, goal } });
-      return;
-    }
+    if (!dataUrl) return;
     const base64Image = dataUrl.replace(/^data:image\/png;base64,/, "");
 
-    // 2) Call the AI endpoint with the config from config.js
-    // e.g. "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions?key=YOURKEY"
     const endpointUrl = `${AI_BASE_URL}?key=${AI_API_KEY}`;
-
-    // Build a minimal request body for "gemini-2.0-flash" style
     const promptText = `
-We have a user whose goal is "${goal}". They appear to be visiting "${url}".
-Screenshot is attached as base64. Decide if they're on-task or off-task.
-Reply with "pass" or "fail" only.
-`.trim();
+      We have a user whose goal is "${goal}". They appear to be visiting "${url}".
+      Screenshot is attached as base64. Decide if they're on-task or off-task.
+      Reply with "pass" or "fail" only.`;
 
     const requestBody = {
       model: AI_MODEL_NAME,
       temperature: 0.0,
       max_tokens: 10,
       messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: promptText },
-            { type: "image_url", image_url: { url: base64Image } }
-          ]
-        }
+        { role: "user", content: promptText },
+        { role: "user", content: base64Image }
       ]
     };
 
@@ -78,24 +82,25 @@ Reply with "pass" or "fail" only.
       const res = await fetch(endpointUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       });
-      if (!res.ok) throw new Error(`${res.status} - ${await res.text()}`);
-      const data = await res.json();
-      if (!data.choices || data.choices.length === 0) throw new Error("No choices from AI");
-      const result = data.choices[0].message.content.trim().toLowerCase();
 
-      if (result === "fail") {
-        // The AI says they're off-task
-        chrome.tabs.sendMessage(tabId, {
-          type: "OFF_TASK_WARNING",
-          payload: { url, goal, aiResult: result }
-        });
+      if (!res.ok) throw new Error(`API Error: ${res.status}`);
+
+      const data = await res.json();
+      if (data.choices && data.choices.length > 0) {
+        const result = data.choices[0].message.content.trim().toLowerCase();
+        if (result === "fail") {
+          chrome.tabs.sendMessage(tabId, {
+            type: "OFF_TASK_WARNING",
+            payload: { url, goal, aiResult: result }
+          });
+        }
+      } else {
+        console.error("AI did not return valid choices.");
       }
-      // if "pass", do nothing
-    } catch (err) {
-      console.error("AI check failed:", err);
-      // fallback: warn user
+    } catch (error) {
+      console.error("AI check failed:", error);
       chrome.tabs.sendMessage(tabId, { type: "OFF_TASK_WARNING", payload: { url, goal } });
     }
   });

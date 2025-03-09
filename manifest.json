@@ -1,33 +1,31 @@
 {
-  "name": "SOT Hackathon",
-  "version": "1.0",
-  "description": "Blocks or warns you when you're off-task,  with a Pomodoro timer.",
   "manifest_version": 3,
-  "permissions": [
-    "tabs",
-    "activeTab",
-    "storage",
-    "notifications"
+  "name": "Space Explorer",
+  "version": "1.0",
+  "description": "Explore the galaxy of productivity with your spaceship companion!",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "web_accessible_resources": [
+    {
+      "resources": ["images/*"],
+      "matches": ["<all_urls>"]
+    }
   ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
   "background": {
     "service_worker": "background.js"
-  },
-  "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "images/icon16.png",
-      "48": "images/icon48.png",
-      "128": "images/icon128.png"
-    }
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["contentScript.js"],
-      "run_at": "document_idle"
+      "js": ["content.js"]
     }
-  ]
+  ],
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  }
 }
